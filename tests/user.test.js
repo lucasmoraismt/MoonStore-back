@@ -122,4 +122,78 @@ describe("DELETE /logout",()=>{
         const result=await supertest(app).delete("/logout").set("Authorization",'abc');
         expect(result.status).toEqual(200)
     });
-})
+});
+
+describe("POST /checkout",()=>{
+    beforeEach(async()=>{
+        await connection.query(`DELETE FROM sessions`);
+        await connection.query(`DELETE FROM users`);
+    });
+
+    beforeAll(async()=>{
+        await connection.query(`INSERT INTO sessions ("userId", token)
+        VALUES ($1, $2)
+        `, [1, 'abc']);
+    });
+
+    it("returns status 400 for no token sent",async ()=>{
+        const result=await supertest(app).post("/checkout");
+        expect(result.status).toEqual(400)
+    });
+
+    it("returns status 404 for invalid token",async ()=>{
+        await connection.query(`INSERT INTO sessions ("userId", token)
+        VALUES ($1, $2)
+    `, [1, 'abc']);
+        const result=await supertest(app).post("/checkout").set("Authorization",'teste');
+        expect(result.status).toEqual(404)
+    });
+
+
+    it("returns status 404 for invalid userid",async()=>{
+        const gameTest=await connection.query(`insert into games (title) 
+        VALUES ('testing') returning id`);
+        const body={
+            userid:5,
+            gamesidlist:gameTest.rows
+        };
+        await connection.query(`INSERT INTO sessions ("userId", token)
+        VALUES ($1, $2)
+    `, [1, 'abc']);
+        const result=await supertest(app).post("/checkout").send(body).set("Authorization",'abc');
+        expect(result.status).toEqual(404)
+    });
+
+
+    it("returns status 409 for invalid gameid",async()=>{
+        await connection.query(`DELETE FROM games`);
+        const useridtest=await connection.query(`INSERT INTO users (name) VALUES ('teste') returning id`);
+        const body={
+            userid:useridtest.rows[0].id,
+            gamesidlist:[0]
+        };
+        
+        await connection.query(`INSERT INTO sessions ("userId", token)
+        VALUES ($1, $2)
+    `, [1, 'abc']);
+        const result=await supertest(app).post("/checkout").send(body).set("Authorization",'abc');
+        expect(result.status).toEqual(409)
+    });
+
+
+    it("returns status 201 for valid params",async()=>{
+        await connection.query(`DELETE FROM games`);
+        const useridtest=await connection.query(`INSERT INTO users (name) VALUES ('teste') returning id`);
+        const gameidtest=await connection.query(`INSERT INTO games (title) VALUES ('teste') returning id`)
+        const body={
+            userid:useridtest.rows[0].id,
+            gamesidlist:[gameidtest.rows[0].id]
+        };
+
+        await connection.query(`INSERT INTO sessions ("userId", token)
+        VALUES ($1, $2)
+    `, [1, 'abc']);
+        const result=await supertest(app).post("/checkout").send(body).set("Authorization",'abc');
+        expect(result.status).toEqual(201)
+    });
+});
