@@ -124,56 +124,61 @@ app.delete("/logout", async (req, res) => {
   }
 });
 
-app.post("/checkout",async(req,res)=>{
-    const authorization = req.headers["authorization"];
-    const token = authorization?.replace("Bearer ", "");
-    if (!token) return res.sendStatus(400);
-    try{
+app.post("/checkout", async (req, res) => {
+  const authorization = req.headers["authorization"];
+  const token = authorization?.replace("Bearer ", "");
+  if (!token) return res.sendStatus(400);
+  try {
     const resulttoken = await connection.query(
-        `SELECT * FROM 
+      `SELECT * FROM 
         sessions WHERE token=$1`,
-        [token]
+      [token]
     );
     if (resulttoken.rows.length === 0) {
-        return res.sendStatus(404);
+      return res.sendStatus(404);
     }
-    const userid=req.body.userid;
-    const result=await connection.query(`SELECT * FROM users WHERE id=$1`,[userid]);
-    if(result.rowCount===0){
-        res.sendStatus(404);return
-    };
+    const userid = req.body.userid;
+    const result = await connection.query(`SELECT * FROM users WHERE id=$1`, [
+      userid,
+    ]);
+    if (result.rowCount === 0) {
+      res.sendStatus(404);
+      return;
+    }
 
-    let queryGamesCheck=`SELECT * FROM games WHERE`;
-    req.body.gamesidlist.map((e,i)=>{
-        if(i==req.body.gamesidlist.length-1){
-            queryGamesCheck += ` id=$${i + 1}`;
-        }else{
-            queryGamesCheck += ` id=$${i + 1} OR`;
-        }
-    })
+    let queryGamesCheck = `SELECT * FROM games WHERE`;
+    req.body.gamesidlist.map((e, i) => {
+      if (i == req.body.gamesidlist.length - 1) {
+        queryGamesCheck += ` id=$${i + 1}`;
+      } else {
+        queryGamesCheck += ` id=$${i + 1} OR`;
+      }
+    });
 
-    const resultgamesid=await connection.query(queryGamesCheck,[...req.body.gamesidlist])
-    if(resultgamesid.rows.length!==req.body.gamesidlist.length){
-        res.sendStatus(409);return
+    const resultgamesid = await connection.query(queryGamesCheck, [
+      ...req.body.gamesidlist,
+    ]);
+    if (resultgamesid.rows.length !== req.body.gamesidlist.length) {
+      res.sendStatus(409);
+      return;
     }
 
     let query = `INSERT INTO sales ("userId", "gameId") VALUES`;
     req.body.gamesidlist.map((g, i) => {
-    if(i==req.body.gamesidlist.length-1){
-    query += `($1, $${i + 2})`;
-    }else{
-    query += `($1, $${i + 2}),`;}
-  });
+      if (i == req.body.gamesidlist.length - 1) {
+        query += `($1, $${i + 2})`;
+      } else {
+        query += `($1, $${i + 2}),`;
+      }
+    });
 
- 
     const request = await connection.query(query, [
-    req.body.userid,
-    ...req.body.gamesidlist,
-  ]);
-  res.sendStatus(201)
-  }catch(e){
-    console.log(e)
-    res.sendStatus(500)
+      req.body.userid,
+      ...req.body.gamesidlist,
+    ]);
+    res.sendStatus(201);
+  } catch (e) {
+    res.sendStatus(500);
   }
-})
+});
 export default app;
