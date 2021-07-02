@@ -44,7 +44,6 @@ app.post("/sign-up", async (req, res) => {
     const validation = SignUpSchema.validate({ name, email, password });
 
     if (validation.error) {
-      console.log(validation.error);
       res.sendStatus(400);
       return;
     }
@@ -64,7 +63,6 @@ app.post("/sign-up", async (req, res) => {
       res.sendStatus(409);
     }
   } catch (e) {
-    console.log(e);
     res.sendStatus(500);
   }
 });
